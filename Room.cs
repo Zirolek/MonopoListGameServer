@@ -1,4 +1,4 @@
-namespace MonopolyGameServer;
+namespace MonopoListGameServer;
 
 public class Room
 {

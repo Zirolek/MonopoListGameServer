@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonopolyGameServer", "MonopolyGameServer.csproj", "{42A49C16-C4A2-44D8-9A56-51D4C0391F5E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonopoListGameServer", "MonopoListGameServer.csproj", "{42A49C16-C4A2-44D8-9A56-51D4C0391F5E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

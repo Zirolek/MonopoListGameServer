@@ -6,7 +6,7 @@ using System.Text;
 using System.Net;
 using Microsoft.VisualBasic;
 
-namespace MonopolyGameServer
+namespace MonopoListGameServer
 {
     class MainServer
     {

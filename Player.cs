@@ -1,4 +1,4 @@
-namespace MonopolyGameServer;
+namespace MonopoListGameServer;
 
 //TODO create field UserDateRegister and UserLastSession
 public class Player

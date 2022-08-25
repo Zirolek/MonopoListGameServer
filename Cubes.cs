@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace MonopolyGameServer;
+namespace MonopoListGameServer;
 
 public class Cubes
 {

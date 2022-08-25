@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace MonopolyGameServer;
+namespace MonopoListGameServer;
 
 public class DataBaseController
 {
