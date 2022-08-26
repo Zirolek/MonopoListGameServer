@@ -5,17 +5,11 @@ namespace MonopoListGameServer;
 public class DataBaseController
 {
     public static string Path = AppDomain.CurrentDomain.BaseDirectory;
-    public static Player[] Players = new Player[0];
+    public static RegisteredPlayer[] Players = new RegisteredPlayer[0];
     public static void SerializeUserData()
     {
         try
         {
-            for (int I = 0; I < Players.Length; I++)
-            {
-                Players[I].InGame = false;
-                Players[I].CellPosition = 0;
-                Players[I].Balance = 0;
-            }
             string[] Lines = new string[1];
             for (int I = 0; I < Players.Length; I++)
             {
@@ -35,18 +29,12 @@ public class DataBaseController
             string[] UsersFileContent = File.ReadAllLines("users.json");
             for (int I = 0; I < UsersFileContent.Length; I++)
             {
-                Player Player = JsonConvert.DeserializeObject<Player>(UsersFileContent[I]);
+                RegisteredPlayer Player = JsonConvert.DeserializeObject<RegisteredPlayer>(UsersFileContent[I]);
                 if (Player != null)
                 {
                     Players = Players.Concat(new [] { Player }).ToArray();
                     //Console.WriteLine(Player.ToJson());
                 }
-            }
-            for (int I = 0; I < Players.Length; I++)
-            {
-                Players[I].InGame = false;
-                Players[I].CellPosition = 0;
-                Players[I].Balance = 0;
             }
         }
         catch (Exception Exception)
@@ -58,10 +46,7 @@ public class DataBaseController
     public static int RegisterNewPlayer(string nick, string passWord)
     {
         Random Random = new Random();
-        Player NewPlayer = new Player();
-        NewPlayer.Id = (ulong) Random.NextInt64(999999999999999999);
-        NewPlayer.NickName = nick;
-        NewPlayer.Password = passWord;
+        RegisteredPlayer NewPlayer = new RegisteredPlayer(((ulong)Random.NextInt64(999999999999999999)), nick, passWord);
         if (CheckPlayer(NewPlayer))
         {
             Players = Players.Concat(new [] { NewPlayer }).ToArray();
@@ -69,7 +54,7 @@ public class DataBaseController
         return GetIdInList(NewPlayer.NickName, NewPlayer.Password);
     }
 
-    public static bool CheckPlayer(Player player)
+    public static bool CheckPlayer(RegisteredPlayer player)
     {
         bool ToReturn = true;
         for (int I = 0; I < Players.Length; I++)

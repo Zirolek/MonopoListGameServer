@@ -16,6 +16,8 @@ namespace MonopoListGameServer
             DataBaseController.Path = args[1];
             DataBaseController.DeSerializeUserData();
 
+            Console.WriteLine("Accounts Length: " + DataBaseController.Players.Length);
+            
             //Listener.TimeoutManager.EntityBody = TimeSpan.FromSeconds(5);
             //Listener.TimeoutManager.HeaderWait = TimeSpan.FromSeconds(5);
             Listener.TimeoutManager.IdleConnection = TimeSpan.FromSeconds(5);
@@ -24,12 +26,14 @@ namespace MonopoListGameServer
 
             // Create a Http server and start listening for incoming connections
             Listener.Prefixes.Add(Url);
+            Listener.Prefixes.Add("http://127.0.0.1:8080/");
             Listener.Start();
             Console.WriteLine("Listening for connections on {0}", Url);
             
             // Handle requests
             //Task ListenTask = 
             HandleIncomingConnections();
+            CheckWebServer();
             //ListenTask.GetAwaiter().GetResult();
 
             while (true)
@@ -41,7 +45,8 @@ namespace MonopoListGameServer
         public static List<Room> Rooms = new List<Room>();
         static HttpListener Listener = new HttpListener();
         static bool RunServer = true;
-        static string Url = "http://127.0.0.1:8080/";
+        //static string Url = "http://127.0.0.1:8080/";
+        static string Url;
         static int PageViews;
         static string PageData = 
             "<!DOCTYPE>" +
@@ -62,213 +67,296 @@ namespace MonopoListGameServer
         {
             Console.WriteLine("Server thread started");
             // While a user hasn't visited the `shutdown` url, keep on handling requests
-            while (RunServer)
+            try
             {
-                // Will wait here until we hear from a connection
-                HttpListenerContext Ctx = await Listener.GetContextAsync();
-
-                // Peel out the requests and response objects
-                HttpListenerRequest Req = Ctx.Request;
-                HttpListenerResponse Response = Ctx.Response;
-
-                if (Req.Url == null) continue;
-
-                if (Req.HttpMethod.ToLower() != "post" && Req.HttpMethod.ToLower() != "get") 
+                while (RunServer)
                 {
-                    SendResponse("Request Error!");
-                    continue;
-                }
-                if (!Req.UserAgent.Contains("python-requests")) 
-                {
-                    SendResponse("Request Error!");
-                    continue;
-                }
-                
-                ulong ClientId = (ulong) Convert.ToInt64(Req.Headers.Get("ID"));
-                int RoomId = 0;
-                
-                if (Req.Headers.Get("RoomID") != null)
-                {
-                    RoomId = Convert.ToInt32(Req.Headers.Get("RoomID"));
-                }
+                    // Will wait here until we hear from a connection
+                    HttpListenerContext Ctx = await Listener.GetContextAsync();
 
-                if (Req.Headers.Get("RoomName") != null)
-                {
-                    RoomId = GetRoomByName(Req.Headers.Get("RoomName"));
-                }
+                    // Peel out the requests and response objects
+                    HttpListenerRequest Req = Ctx.Request;
+                    HttpListenerResponse Response = Ctx.Response;
 
-                int ClientIdInList = DataBaseController.GetIdInList(ClientId);
-                
-                switch (Req.Url.AbsolutePath.ToLower())
-                {
-                    /*case "/shutdown":
-                        Console.WriteLine("Shutdown requested");
-                        RunServer = false;
-                        SendResponse(PageData.Replace("{0}", PageViews.ToString()));
-                        break;*/
-                    case "/register":
-                        int IdInList = DataBaseController.RegisterNewPlayer(Req.Headers.Get("user"), Req.Headers.Get("pass"));
-                        if (IdInList != -1)
-                        {
-                            SendResponse(DataBaseController.Players[IdInList].ToJson());
-                        }
-                        else
-                        {
-                            SendResponse("{\"ID\": \"" + "Error!" + "\", \"NickName\": \"" + "Error!" + "\", \"Password\": \"" + "Error!" + "\"}");
-                        }
-                        break;
-                    case "/login":
-                        //int IdInList1 = DataBaseController.GetIdInList(Req.Headers.Get("user"), Req.Headers.Get("pass"));
-                        int IdInList1 = DataBaseController.IsAccountExists(Req.Headers.Get("user"));
-                        if (IdInList1 != -1)
-                        {
-                            int ItIsIt = DataBaseController.GetIdInList(Req.Headers.Get("user"), Req.Headers.Get("pass"));
-                            if (ItIsIt != -1)
+                    if (Req.HttpMethod.ToLower() != "post" && Req.HttpMethod.ToLower() != "get")
+                    {
+                        SendResponse("Request Error!");
+                        continue;
+                    }
+
+                    if (!Req.UserAgent.Contains("python-requests"))
+                    {
+                        SendResponse("Request Error!");
+                        continue;
+                    }
+
+                    ulong ClientId = (ulong)Convert.ToInt64(Req.Headers.Get("ID"));
+
+                    int RoomId = 0;
+
+                    if (Req.Headers.Get("RoomID") != null)
+                    {
+                        RoomId = Convert.ToInt32(Req.Headers.Get("RoomID"));
+                    }
+
+                    if (Req.Headers.Get("RoomName") != null)
+                    {
+                        RoomId = GetRoomByName(Req.Headers.Get("RoomName"));
+                    }
+
+                    int ClientIdInList = DataBaseController.GetIdInList(ClientId);
+
+                    //Console.Write("hfdi;jfdhlk;" + ClientIdInList);
+
+                    switch (Req.Url.AbsolutePath.ToLower())
+                    {
+                        /*case "/shutdown":
+                            Console.WriteLine("Shutdown requested");
+                            RunServer = false;
+                            SendResponse(PageData.Replace("{0}", PageViews.ToString()));
+                            break;*/
+                        case "/register":
+                            int IdInList =
+                                DataBaseController.RegisterNewPlayer(Req.Headers.Get("user"), Req.Headers.Get("pass"));
+                            if (IdInList != -1)
                             {
-                                SendResponse(DataBaseController.Players[ItIsIt].ToJson());
+                                SendResponse(DataBaseController.Players[IdInList].ToJsonRegistered());
                             }
                             else
                             {
-                                SendResponse("{\"ID\": " + "-2" + ", \"NickName\": \"" + "User found!" + "\", \"Password\": \"" + "Wrong password!" + "\"}");
+                                SendResponse("{\"ID\": \"" + "Error!" + "\", \"NickName\": \"" + "Error!" +
+                                             "\", \"Password\": \"" + "Error!" + "\"}");
                             }
-                        }
-                        else
-                        {
-                            SendResponse("{\"ID\": " + "-1" + ", \"NickName\": \"" + "User not found!" + "\", \"Password\": \"" + "Error!" + "\"}");
-                        }
-                        break;
-                    case "/save":
-                        DataBaseController.SerializeUserData();
-                        break;
-                    case "/room/new":
-                        if (ClientIdInList != -1 && DataBaseController.Players[ClientIdInList].Id != 0 && Rooms.Count <= 20)
-                        {
-                            int PlayersCount = Convert.ToInt32(Req.Headers.Get("MaxPlayers"));
-                            Rooms.Add(new Room(Req.Headers.Get("RoomName"), PlayersCount));
-                            SendResponse("{\"RoomCreated\": True}");
-                        }
-                        else
-                        {
-                            SendResponse("{\"RoomCreated\": False}");
-                        }
-                        break;
-                    case "/room/state":
-                        if (Rooms[RoomId] != null)
-                        {
-                            SendResponse(Rooms[RoomId].ToJsonForLobby());
-                        }
-                        else
-                        {
-                            SendResponse("null");
-                        }
-                        break;
-                    case "/rooms":
-                        string ToResponse = "{";
-                        Rooms.Remove(null);
-                        for (int I = 0; I < Rooms.Count; I++)
-                        {
-                            if (I != Rooms.Count - 1)
-                            {
-                                ToResponse = ToResponse + $"\"{I}\": " + Rooms[I].ToJsonForLobby() + ", ";
-                            }
-                            if (I == Rooms.Count - 1)
-                            {
-                                ToResponse = ToResponse + $"\"{I}\": " + Rooms[I].ToJsonForLobby();
-                            }
-                        }
-                        SendResponse(ToResponse + "}");
-                        break;
-                    case "/join":
-                        if (ClientIdInList != -1 && DataBaseController.Players[ClientIdInList].Id != 0)
-                        {
-                            bool Res = Rooms[RoomId].JoinToRoom(ClientIdInList);
-                            if (Res)
-                            {
-                                Console.WriteLine($"Player {DataBaseController.Players[ClientIdInList].NickName} joined to " + Req.Headers.Get("RoomName"));
-                            }
-                            SendResponse("{\"Joined\": " + Res + "}");
-                        }
-                        else
-                        {
-                            SendResponse("{\"Joined\": " + "None}");
-                        }
-                        break;
-                    case "/leave":
-                        if (ClientIdInList != -1 && DataBaseController.Players[ClientIdInList].Id != 0)
-                        {
-                            bool Res = Rooms[RoomId].LeaveFromRoom(ClientIdInList);
-                            if (Res)
-                            {
-                                Console.WriteLine($"Player {DataBaseController.Players[ClientIdInList].NickName} leaved from " + Req.Headers.Get("RoomName"));
-                            }
-                            SendResponse("{\"Leaved\": " + Res + "}");
-                        }
-                        else
-                        {
-                            SendResponse("{\"Leaved\": " + "None}");
-                        }
-                        break;
-                    case "/game/state":
-                        /*ulong ClientId1 = (ulong) Convert.ToInt64(Req.Headers.Get("ID"));
-                        int RoomId1 = Convert.ToInt32(Req.Headers.Get("RoomID"));
-                        int ClientIdInList1 = DataBaseController.GetIdInList(ClientId1);
-                        if (ClientIdInList1 != -1 && DataBaseController.Players[ClientIdInList1].Id != 0)
-                        {
-                            SendResponse("\"Joined\": " + Rooms[RoomId1].JoinToRoom(ClientIdInList1));
-                        }
-                        else
-                        {
-                            SendResponse("\"Joined\": " + "None");
-                        }*/
-                        SendResponse("{\"Response\": \"For bidden\"}");
-                        break;
-                    case "/game/move":
-                        Rooms[RoomId].DropCubes(ClientIdInList);
-                        SendResponse(Rooms[RoomId].Cubes.ToJson());
-                        break;
-                    //For debug
-                    case "/player":
-                        SendResponse(DataBaseController.Players[ClientIdInList].ToJson());
-                        break;
-                    //End For debug
-                    default:
-                        SendResponse("Bad request");
-                        break;
-                }
 
-                // Make sure we don't increment the page views counter if `favicon.ico` is requested
-                if (Req.Url.AbsolutePath != "/favicon.ico")
-                {
-                    PageViews += 1;
-                }
-                async void SendResponse(string responseString)
-                {
-                    // Write the response info
-                    byte[] DataToResponse = Encoding.UTF8.GetBytes(responseString);
-                    Response.ContentType = "application/json";
-                    //Response.ContentType = "text/html";
-                    Response.ContentEncoding = Encoding.UTF8;
-                    Response.ContentLength64 = DataToResponse.LongLength;
+                            break;
+                        case "/login":
+                            //int IdInList1 = DataBaseController.GetIdInList(Req.Headers.Get("user"), Req.Headers.Get("pass"));
+                            int IdInList1 = DataBaseController.IsAccountExists(Req.Headers.Get("user"));
+                            if (IdInList1 != -1)
+                            {
+                                int ItIsIt = DataBaseController.GetIdInList(Req.Headers.Get("user"),
+                                    Req.Headers.Get("pass"));
+                                if (ItIsIt != -1)
+                                {
+                                    SendResponse(DataBaseController.Players[ItIsIt].ToJsonRegistered());
+                                }
+                                else
+                                {
+                                    SendResponse("{\"ID\": " + "-2" + ", \"NickName\": \"" + "User found!" +
+                                                 "\", \"Password\": \"" + "Wrong password!" + "\"}");
+                                }
+                            }
+                            else
+                            {
+                                SendResponse("{\"ID\": " + "-1" + ", \"NickName\": \"" + "User not found!" +
+                                             "\", \"Password\": \"" + "Error!" + "\"}");
+                            }
 
-                    // Write out to the response stream (asynchronously), then close it
-                    await Response.OutputStream.WriteAsync(DataToResponse, 0, DataToResponse.Length);
-                    Response.Close();
+                            break;
+                        case "/save":
+                            DataBaseController.SerializeUserData();
+                            break;
+                        case "/room/new":
+                            if (ClientIdInList != -1 && DataBaseController.Players[ClientIdInList].Id != 0 &&
+                                Rooms.Count <= 20)
+                            {
+                                int PlayersCount = Convert.ToInt32(Req.Headers.Get("MaxPlayers"));
+                                Rooms.Add(new Room(Req.Headers.Get("RoomName"), PlayersCount));
+                                SendResponse("{\"RoomCreated\": True}");
+                            }
+                            else
+                            {
+                                SendResponse("{\"RoomCreated\": False}");
+                            }
+
+                            break;
+                        case "/room/state":
+                            if (Rooms[RoomId] != null)
+                            {
+                                SendResponse(Rooms[RoomId].ToJsonForLobby());
+                            }
+                            else
+                            {
+                                SendResponse("null");
+                            }
+
+                            break;
+                        case "/rooms":
+                            string ToResponse = "{";
+                            Rooms.Remove(null);
+                            for (int I = 0; I < Rooms.Count; I++)
+                            {
+                                if (I != Rooms.Count - 1)
+                                {
+                                    ToResponse = ToResponse + $"\"{I}\": " + Rooms[I].ToJsonForLobby() + ", ";
+                                }
+
+                                if (I == Rooms.Count - 1)
+                                {
+                                    ToResponse = ToResponse + $"\"{I}\": " + Rooms[I].ToJsonForLobby();
+                                }
+                            }
+
+                            SendResponse(ToResponse + "}");
+                            break;
+                        case "/join":
+                            if (ClientIdInList != -1 && DataBaseController.Players[ClientIdInList].Id != 0)
+                            {
+                                bool Res = Rooms[RoomId].JoinToRoom(ClientIdInList);
+                                if (Res)
+                                {
+                                    Console.WriteLine(
+                                        $"Player {DataBaseController.Players[ClientIdInList].NickName} joined to " +
+                                        Req.Headers.Get("RoomName"));
+                                }
+
+                                SendResponse("{\"Joined\": " + Res + "}");
+                            }
+                            else
+                            {
+                                SendResponse("{\"Joined\": " + "None}");
+                            }
+
+                            break;
+                        case "/leave":
+                            if (ClientIdInList != -1 && DataBaseController.Players[ClientIdInList].Id != 0)
+                            {
+                                bool Res = Rooms[RoomId].LeaveFromRoom(ClientIdInList);
+                                if (Res)
+                                {
+                                    Console.WriteLine(
+                                        $"Player {DataBaseController.Players[ClientIdInList].NickName} leaved from " +
+                                        Req.Headers.Get("RoomName"));
+                                }
+
+                                SendResponse("{\"Leaved\": " + Res + "}");
+                            }
+                            else
+                            {
+                                SendResponse("{\"Leaved\": " + "None}");
+                            }
+
+                            break;
+                        case "/game/state":
+                            /*ulong ClientId1 = (ulong) Convert.ToInt64(Req.Headers.Get("ID"));
+                            int RoomId1 = Convert.ToInt32(Req.Headers.Get("RoomID"));
+                            int ClientIdInList1 = DataBaseController.GetIdInList(ClientId1);
+                            if (ClientIdInList1 != -1 && DataBaseController.Players[ClientIdInList1].Id != 0)
+                            {
+                                SendResponse("\"Joined\": " + Rooms[RoomId1].JoinToRoom(ClientIdInList1));
+                            }
+                            else
+                            {
+                                SendResponse("\"Joined\": " + "None");
+                            }*/
+                            SendResponse("{\"Response\": \"For bidden\"}");
+                            break;
+                        case "/game/move":
+                            Rooms[RoomId].DropCubes(ClientIdInList);
+                            SendResponse(Rooms[RoomId].Cubes.ToJson());
+                            break;
+                        //For debug
+                        case "/player":
+                            SendResponse(DataBaseController.Players[ClientIdInList].ToJsonRegistered());
+                            break;
+                        //End For debug
+                        case "/alive":
+                            SendResponse("True");
+                            break;
+                        default:
+                            SendResponse("Bad Request");
+                            break;
+                    }
+
+                    // Make sure we don't increment the page views counter if `favicon.ico` is requested
+                    if (Req.Url.AbsolutePath != "/favicon.ico")
+                    {
+                        PageViews += 1;
+                    }
+
+                    async void SendResponse(string responseString)
+                    {
+                        // Write the response info
+                        byte[] DataToResponse = Encoding.UTF8.GetBytes(responseString);
+                        Response.ContentType = "application/json";
+                        //Response.ContentType = "text/html";
+                        Response.ContentEncoding = Encoding.UTF8;
+                        Response.ContentLength64 = DataToResponse.LongLength;
+
+                        // Write out to the response stream (asynchronously), then close it
+                        await Response.OutputStream.WriteAsync(DataToResponse, 0, DataToResponse.Length);
+                        Response.Close();
+                    }
                 }
             }
+            catch (Exception Exception)
+            {
+                Console.WriteLine("Error! \n" + Exception.ToString());
+            }
         }
-        
+
+        static async Task CheckWebServer()
+        {
+            await Task.Delay(5000);
+            while (true)
+            {
+                string Method = "post";
+                //Console.WriteLine(Url + "alive");
+                HttpWebRequest HttpRequest = (HttpWebRequest) HttpWebRequest.Create("http://127.0.0.1:8080/" + "alive");
+                HttpRequest.Timeout = 1000;
+                HttpRequest.ContentType = "application/json";
+                HttpRequest.UserAgent = "python-requests";
+                HttpRequest.Method = Method;
+
+                /*using (StreamWriter streamwriter = new StreamWriter(HttpRequest.GetRequestStream()))
+                {
+                    streamwriter.Write(QueryJson);
+                    streamwriter.Flush();
+                    streamwriter.Close();
+                }*/
+
+                try
+                {
+                    using (StreamReader StreamReader = new StreamReader(HttpRequest.GetResponse().GetResponseStream()))
+                    {
+                        StreamReader.ReadToEnd();
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Server not responding in 1000ms \nRestarting...");
+                    Restart();
+                    Console.WriteLine("Restarted!");
+                }
+
+                static void Restart()
+                {
+                    RunServer = false;
+                    Listener.Close();
+                    Listener = new HttpListener();
+                    Listener.Prefixes.Add(Url);
+                    Listener.Prefixes.Add("http://127.0.0.1:8080/");
+                    Listener.Start();
+                    RunServer = true;
+                    HandleIncomingConnections();
+                }
+
+                await Task.Delay(100);
+            }
+        }
+
         static void GetCommand(string command)
         {
             switch (command) 
             {
                 case "/help":
-                    Console.WriteLine("\n" + "/stop : disable bot");
+                    Console.WriteLine("/stop : disable bot");
                     Console.WriteLine("/save : save user data");
-                    Console.WriteLine("/help : get commands list" + "\n");
+                    Console.WriteLine("/help : get commands list");
                     break;
 
                 case "/save":
-                    Console.WriteLine("\n" + "Starting save");
+                    Console.WriteLine("Starting save");
                     DataBaseController.SerializeUserData();
                     Console.WriteLine();
                     break;
@@ -299,7 +387,7 @@ namespace MonopoListGameServer
                     break;
 
                 case "/stop":
-                    Console.WriteLine("\nSave? (yes / no / cancel)\n");
+                    Console.WriteLine("Save? (yes / no / cancel)");
                     string Input = Console.ReadLine();
                     switch (Input) 
                     {
@@ -317,18 +405,17 @@ namespace MonopoListGameServer
                             break;
 
                         case "cancel":
-                            Console.WriteLine("\n");
-                            break;
-                        
+                            return;
+
                         default:
-                            Console.WriteLine("yes / no / cancel !" + "\n");
+                            Console.WriteLine("yes / no / cancel !");
                             GetCommand("/stop");
                             break;
                     }
                     break;
                 
                 default:
-                    Console.WriteLine("\n" + "Unknow command. Use /help to get commands." + "\n");
+                    Console.WriteLine("Unknow command. Use /help to get commands.");
                     break;
 
             }

@@ -8,7 +8,13 @@ public class Room
         MaxPlayers = maxPlayers;
         if (maxPlayers <= 10)
         {
-            Players = new int[maxPlayers];
+            Players = new Player[maxPlayers];
+            int I = 0;
+            while (I < Players.Length)
+            {
+                Players[I] = null;
+                I++;
+            }
         }
         StayAlive();
     }
@@ -18,7 +24,7 @@ public class Room
     private int CurrentPlayers = 0;
     private Point[] Products = new Point[36];
     public readonly Cubes Cubes = new Cubes();
-    private int[] Players;
+    private Player[] Players;
     private bool IsGameStarted = false;
 
     private int GlobalWaitedTime = 0;
@@ -37,7 +43,7 @@ public class Room
             {
                 for (int I = 0; I < Players.Length; I++)
                 {
-                    if (Players[I] == 0)
+                    if (Players[I] == null)
                     {
                         AllPlayersInRoom = false;
                     }
@@ -60,7 +66,7 @@ public class Room
             {
                 if (PlayerWaitTime >= 600)
                 {
-                    DataBaseController.Players[PlayerWaitingId].Bankrupt = true;
+                    Players[PlayerWaitingId].Bankrupt = true;
                 }
                 PlayerWaitTime++;
             }
@@ -86,15 +92,17 @@ public class Room
             {
                 if (!DataBaseController.Players[IdInList].InGame)
                 {
-                    DataBaseController.Players[IdInList].Bankrupt = false;
-                    DataBaseController.Players[IdInList].InGame = true;
-                    DataBaseController.Players[IdInList].Balance = 0;
-                    DataBaseController.Players[IdInList].CellPosition = 0;
                     for (int I = 0; I < Players.Length; I++)
                     {
-                        if (Players[I] == 0)
+                        if (Players[I] == null)
                         {
-                            Players[I] = IdInList;
+                            Players[I] = new Player(DataBaseController.Players[IdInList]);
+                            DataBaseController.Players[IdInList].InGame = true;
+                            Players[I].InGame = true;
+                            Players[I].Bankrupt = false;
+                            Players[I].InGame = true;
+                            Players[I].Balance = 0;
+                            Players[I].CellPosition = 0;
                             CurrentPlayers++;
                             return true;
                         }
@@ -123,15 +131,18 @@ public class Room
         {
             if (DataBaseController.Players[IdInList].InGame)
             {
-                DataBaseController.Players[IdInList].Bankrupt = false;
-                DataBaseController.Players[IdInList].InGame = false;
-                DataBaseController.Players[IdInList].Balance = 0;
-                DataBaseController.Players[IdInList].CellPosition = 0;
                 for (int I = 0; I < Players.Length; I++)
                 {
-                    if (Players[I] == IdInList)
+                    if (Players[I].Id == DataBaseController.Players[IdInList].Id)
                     {
-                        Players[I] = 0;
+                        Players[I] = new Player(DataBaseController.Players[IdInList]);
+                        DataBaseController.Players[IdInList].InGame = true;
+                        Players[I].InGame = true;
+                        Players[I].Bankrupt = false;
+                        Players[I].InGame = true;
+                        Players[I].Balance = 0;
+                        Players[I].CellPosition = 0;
+                        Players[I] = null;
                         CurrentPlayers--;
                         return true;
                     }
@@ -156,7 +167,7 @@ public class Room
     {
         for (int I = 0; I < Players.Length; I++)
         {
-            if (Players[I] == IdInList)
+            if (Players[I].Id == DataBaseController.Players[IdInList].Id)
             {
                 return I;
             }
@@ -172,7 +183,10 @@ public class Room
         string AllPlayers = "{" + "\"RoomName\": \"" + RoomName + "\", \"IsGameStarted\": " + IsGameStarted + ", \"WaitedTime\": " + GlobalWaitedTime + ", \"CurrentPlayers\": " + CurrentPlayers + ", \"MaxPlayers\": " + MaxPlayers;
         for (int I = 0; I < this.Players.Length; I++)
         {
-            AllPlayers = AllPlayers + $", \"Player_{I}\": \"{DataBaseController.Players[Players[I]].NickName}\"";
+            if (Players[I] != null)
+            {
+                AllPlayers = AllPlayers + $", \"Player_{I}\": \"{DataBaseController.Players[DataBaseController.GetIdInList(Players[I].Id)].NickName}\"";
+            }
         }
         AllPlayers = AllPlayers + "}";
         return  AllPlayers;
