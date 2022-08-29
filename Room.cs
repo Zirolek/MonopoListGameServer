@@ -6,17 +6,18 @@ public class Room
     {
         RoomName = roomName;
         MaxPlayers = maxPlayers;
+        Console.WriteLine(MaxPlayers);
         if (maxPlayers <= 10)
         {
-            Players = new Player[maxPlayers];
+            Players = new List<Player>(maxPlayers);
             int I = 0;
-            while (I < Players.Length)
+            while (I < Players.Count)
             {
                 Players[I] = null;
                 I++;
             }
+            StayAlive();
         }
-        StayAlive();
     }
     public string RoomName;
     private int MaxPlayers;
@@ -24,12 +25,12 @@ public class Room
     private int CurrentPlayers = 0;
     private Point[] Products = new Point[36];
     public readonly Cubes Cubes = new Cubes();
-    private Player[] Players;
+    private List<Player> Players;
     private bool IsGameStarted = false;
 
     private int GlobalWaitedTime = 0;
     private int PlayerWaitingId = 0;
-    private int PlayerWaitTime = 0;
+    private int PlayerWaitedTime = 0;
     
     
     
@@ -41,38 +42,48 @@ public class Room
             await Task.Delay(200);
             if (!IsGameStarted)
             {
-                for (int I = 0; I < Players.Length; I++)
+                if (Players.Count < MaxPlayers)
                 {
-                    if (Players[I] == null)
-                    {
-                        AllPlayersInRoom = false;
-                    }
+                    AllPlayersInRoom = false;
                 }
-                //Console.WriteLine(WaitedTime + " " + AllPlayersInRoom);
+
                 if (GlobalWaitedTime >= 25 && AllPlayersInRoom)
                 {
                     IsGameStarted = true;
                     GlobalWaitedTime = 0;
                 }
 
-                if (GlobalWaitedTime > 300 && !(CurrentPlayers > 0))
+                if (GlobalWaitedTime > 300 && CurrentPlayers == 0)
                 {
-                    MainServer.Rooms[MainServer.GetRoomByName(RoomName)] = null;
-                    MainServer.Rooms.Remove(null);
+                    CloseRoom();
                 }
             }
             
             if (IsGameStarted)
             {
-                if (PlayerWaitTime >= 600)
+                if (PlayerWaitedTime >= 600)
                 {
                     Players[PlayerWaitingId].Bankrupt = true;
+                    PlayerWaitedTime = 0;
+                    StartWaitingNextPlayer();
                 }
-                PlayerWaitTime++;
+
+                if (Players.Count == 1)
+                {
+                    CloseRoom();
+                }
+
+                PlayerWaitedTime++;
             }
             
             GlobalWaitedTime++;
         }
+    }
+
+    private void CloseRoom()
+    {
+        MainServer.Rooms[MainServer.GetRoomByName(RoomName)] = null;
+        MainServer.Rooms.Remove(null);
     }
 
     public async Task DropCubes(int idInList)
@@ -81,45 +92,62 @@ public class Room
         if (Id != -1 && PlayerWaitingId == Id)
         {
             Cubes.Next();
+            PlayerNextCellPosition(Id, Cubes.FirstCubeResultP, Cubes.SecondCubeResultP);
+            if (Cubes.FirstCubeResultP != Cubes.SecondCubeResultP)
+            {
+                StartWaitingNextPlayer();
+            }
+        }
+    }
+
+    private void StartWaitingNextPlayer()
+    {
+        PlayerWaitedTime = 0;
+        PlayerWaitingId++;
+        if (PlayerWaitingId == Players.Count)
+        {
+            for (int I = 0; I < Players.Count; I++)
+            {
+                if (!Players[I].Bankrupt)
+                {
+                    PlayerWaitingId = I;
+                    break;
+                }
+            }
+        }
+    }
+    
+    private void PlayerNextCellPosition(int Id, int x, int y)
+    {
+        PlayerWaitedTime = 0;
+        Players[Id].CellPosition = Players[Id].CellPosition + (x + y);
+        if (Players[Id].CellPosition >= Products.Length)
+        {
+            Players[Id].CellPosition = -(Products.Length - Players[Id].CellPosition);
         }
     }
 
     public bool JoinToRoom(int IdInList)
     {
-        if (CurrentPlayers < MaxPlayers + 1)
+        try
         {
-            try
+            if (CurrentPlayers <= MaxPlayers && !DataBaseController.Players[IdInList].InGame)
             {
-                if (!DataBaseController.Players[IdInList].InGame)
-                {
-                    for (int I = 0; I < Players.Length; I++)
-                    {
-                        if (Players[I] == null)
-                        {
-                            Players[I] = new Player(DataBaseController.Players[IdInList]);
-                            DataBaseController.Players[IdInList].InGame = true;
-                            Players[I].InGame = true;
-                            Players[I].Bankrupt = false;
-                            Players[I].InGame = true;
-                            Players[I].Balance = 0;
-                            Players[I].CellPosition = 0;
-                            CurrentPlayers++;
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                else
-                {
-                    return false;
-                }
+                DataBaseController.Players[IdInList].InGame = true; 
+                Players.Add(new Player(DataBaseController.Players[IdInList]));
+                CurrentPlayers++;
+                return true; 
             }
-            catch (Exception e)
+            else
             {
-                Console.WriteLine(e);
-                throw;
                 return false;
             }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+            return false;
         }
 
         return false;
@@ -131,18 +159,13 @@ public class Room
         {
             if (DataBaseController.Players[IdInList].InGame)
             {
-                for (int I = 0; I < Players.Length; I++)
+                for (int I = 0; I < Players.Count; I++)
                 {
                     if (Players[I].Id == DataBaseController.Players[IdInList].Id)
                     {
-                        Players[I] = new Player(DataBaseController.Players[IdInList]);
-                        DataBaseController.Players[IdInList].InGame = true;
-                        Players[I].InGame = true;
-                        Players[I].Bankrupt = false;
-                        Players[I].InGame = true;
-                        Players[I].Balance = 0;
-                        Players[I].CellPosition = 0;
+                        DataBaseController.Players[IdInList].InGame = false;
                         Players[I] = null;
+                        Players.Remove(null);
                         CurrentPlayers--;
                         return true;
                     }
@@ -165,7 +188,7 @@ public class Room
 
     private int FindIdOnLocalList(int IdInList)
     {
-        for (int I = 0; I < Players.Length; I++)
+        for (int I = 0; I < Players.Count; I++)
         {
             if (Players[I].Id == DataBaseController.Players[IdInList].Id)
             {
@@ -179,21 +202,37 @@ public class Room
     public string ToJsonForLobby()
     {
         string IsGameStarted = this.IsGameStarted.ToString();
-        string MaxPlayers = Players.Length.ToString();
-        string AllPlayers = "{" + "\"RoomName\": \"" + RoomName + "\", \"IsGameStarted\": " + IsGameStarted + ", \"WaitedTime\": " + GlobalWaitedTime + ", \"CurrentPlayers\": " + CurrentPlayers + ", \"MaxPlayers\": " + MaxPlayers;
-        for (int I = 0; I < this.Players.Length; I++)
+        string MaxPlayers = this.MaxPlayers.ToString();
+        string ToReturn = "{" + "\"RoomName\": \"" + RoomName + "\", \"IsGameStarted\": " + IsGameStarted + ", \"CurrentPlayers\": " + CurrentPlayers + ", \"MaxPlayers\": " + MaxPlayers;
+        for (int I = 0; I < this.Players.Count; I++)
         {
             if (Players[I] != null)
             {
-                AllPlayers = AllPlayers + $", \"Player_{I}\": \"{DataBaseController.Players[DataBaseController.GetIdInList(Players[I].Id)].NickName}\"";
+                ToReturn = ToReturn + $", \"Player_{I}\": \"{DataBaseController.Players[DataBaseController.GetIdInList(Players[I].Id)].NickName}\"";
             }
         }
-        AllPlayers = AllPlayers + "}";
-        return  AllPlayers;
+        ToReturn = ToReturn + "}";
+        return  ToReturn;
     }
     
     public string ToJsonForState()
     {
-        return null;
+        string ToReturn = "{" + "\"PlayerWaitingId\": " + PlayerWaitingId + ", \"PlayerWaitTime\": " + PlayerWaitedTime  + ", \"IsGameStarted\": " + IsGameStarted;
+        for (int I = 0; I < this.Players.Count; I++)
+        {
+            if (Players[I] != null)
+            {
+                ToReturn = ToReturn + $", \"PlayerIsBankrupt_{I}\": {Players[I].Bankrupt}";
+            }
+        }
+        for (int I = 0; I < this.Players.Count; I++)
+        {
+            if (Players[I] != null)
+            {
+                ToReturn = ToReturn + $", \"PlayerCellPosition_{I}\": {Players[I].CellPosition}";
+            }
+        }
+        ToReturn = ToReturn + "}";
+        return ToReturn;
     }
 }
