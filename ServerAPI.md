@@ -26,10 +26,12 @@
 - Headers:
   - RoomName or RoomID
 - Response: `$"{"RoomName": "{RoomName}", "IsGameStarted": {IsGameStarted}, "CurrentPlayers": {CurrentPlayers}, "MaxPlayers": {MaxPlayers}, "Player_{I}": "{Players[I].NickName}"}`  or `null`
+- Response Example: `{"RoomName": "Gay", "IsGameStarted": "false", "CurrentPlayers": 1, "MaxPlayers": 2, "Player_0": "cat"}`
 ### /room/state
 - Headers:
   - ID, RoomName or RoomID
 - Response: `$"{"PlayerWaitingId": {PlayerWaitingId}, "PlayerWaitTime": {PlayerWaitedTime}, "IsGameStarted": {IsGameStarted}, "PlayerIsBankrupt_{I}": {Players[I].Bankrupt}, "PlayerCellPosition_{I}": {Players[I].CellPosition}"`  or `null`
+- Response Example: `{"PlayerWaitingId": 0, "PlayerWaitTime": 0, "IsGameStarted": "false", "PlayerIsBankrupt_0": "false", "PlayerCellPosition_0": 0}`
 ### /room/join
 - Headers:
   - ID, RoomName or RoomID
