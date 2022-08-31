@@ -18,6 +18,7 @@
 ### /rooms
 - Headers: Not Requeared
 - Response: `{"ID": "RoomInit.ToJsonForLobby()"}`
+- Response Example: `{"0": {"RoomName": "Gay", "IsGameStarted": "false", "CurrentPlayers": 1, "MaxPlayers": 2, "Player_0": "cat"}, "1": {"RoomName": "Gay1", "IsGameStarted": "true", "CurrentPlayers": 1, "MaxPlayers": 2, "Player_0": "mouse"}}`
 ### /room/new
 - Headers:
   - ID, RoomName
@@ -44,3 +45,4 @@
 - Headers:
   - ID, RoomName or RoomID
 - Response: `$"{"FirstCubeResult": {FirstCubeResult}, "SecondCubeResult": {SecondCubeResult}"}"`
+- Response Example: `{"FirstCubeResult": 2, "SecondCubeResult": 0}`
