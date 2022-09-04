@@ -23,7 +23,7 @@
 - Headers:
   - ID, RoomName
 - Response: `{"RoomCreated": true} or {"RoomCreated": false}`
-### /room/lobby
+### /room/lobby (Deprecated)
 - Headers:
   - RoomName or RoomID
 - Response: `$"{"RoomName": "{RoomName}", "IsGameStarted": {IsGameStarted}, "CurrentPlayers": {CurrentPlayers}, "MaxPlayers": {MaxPlayers}, "Player_{I}": "{Players[I].NickName}"}`  or `null`
